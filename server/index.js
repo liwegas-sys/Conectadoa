@@ -2,7 +2,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import pool from './db.js';
-
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 dotenv.config({ path: './server/.env' });
 
 const app = express();
@@ -176,6 +177,106 @@ app.get('/api/doacoes', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ erro: 'Erro ao consultar doações' });
+  }
+});
+// Cadastrar usuário
+app.post('/api/usuarios', async (req, res) => {
+  try {
+    const { nome, email, senha } = req.body;
+
+    if (!nome || !email || !senha) {
+      return res.status(400).json({
+        erro: 'Nome, e-mail e senha são obrigatórios'
+      });
+    }
+
+    if (senha.length < 6) {
+      return res.status(400).json({
+        erro: 'A senha deve ter pelo menos 6 caracteres'
+      });
+    }
+
+    const senhaHash = await bcrypt.hash(senha, 10);
+
+    const [resultado] = await pool.query(
+      'INSERT INTO usuario (nome, email, senha) VALUES (?, ?, ?)',
+      [nome, email, senhaHash]
+    );
+
+    res.status(201).json({
+      mensagem: 'Usuário cadastrado com sucesso',
+      id: resultado.insertId
+    });
+
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        erro: 'Este e-mail já está cadastrado'
+      });
+    }
+
+    console.error(error);
+    res.status(500).json({
+      erro: 'Erro ao cadastrar usuário'
+    });
+  }
+});
+
+// Login
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+
+    if (!email || !senha) {
+      return res.status(400).json({
+        erro: 'Informe o e-mail e a senha'
+      });
+    }
+
+    const [usuarios] = await pool.query(
+      'SELECT * FROM usuario WHERE email = ?',
+      [email]
+    );
+
+    if (usuarios.length === 0) {
+      return res.status(401).json({
+        erro: 'E-mail ou senha incorretos'
+      });
+    }
+
+    const usuario = usuarios[0];
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+
+    if (!senhaValida) {
+      return res.status(401).json({
+        erro: 'E-mail ou senha incorretos'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: usuario.id,
+        email: usuario.email
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+
+    res.json({
+      mensagem: 'Login realizado com sucesso',
+      token,
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email
+      }
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      erro: 'Erro ao realizar login'
+    });
   }
 });
 app.listen(PORT, () => {
