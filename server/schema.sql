@@ -1,0 +1,40 @@
+
+CREATE TABLE IF NOT EXISTS doador (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(150) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    telefone VARCHAR(20),
+);P
+);
+
+CREATE TABLE IF NOT EXISTS categoria (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS item (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(150) NOT NULL,
+    descricao TEXT,
+    categoria_id INT NOT NULL,
+    quantidade INT NOT NULL DEFAULT 0,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoria_id) REFERENCES categoria(id)
+);
+
+CREATE TABLE IF NOT EXISTS doacao (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    doador_id INT NOT NULL,
+    data_doacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) NOT NULL DEFAULT 'pendente',
+    FOREIGN KEY (doador_id) REFERENCES doador(id)
+);
+
+CREATE TABLE IF NOT EXISTS doacao_item (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    doacao_id INT NOT NULL,
+    item_id INT NOT NULL,
+    quantidade INT NOT NULL,
+    FOREIGN KEY (doacao_id) REFERENCES doacao(id),
+    FOREIGN KEY (item_id) REFERENCES item(id)
+);
