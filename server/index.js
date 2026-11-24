@@ -106,7 +106,78 @@ app.get('/api/health', (req, res) => {
     hora: new Date().toISOString()
   });
 });
+// Cadastrar doação
+app.post('/api/doacoes', async (req, res) => {
+  const { doador_id, itens } = req.body;
 
+  if (!doador_id || !Array.isArray(itens) || itens.length === 0) {
+    return res.status(400).json({
+      erro: 'Informe o doador e pelo menos um item'
+    });
+  }
+
+  const conexao = await pool.getConnection();
+
+  try {
+    await conexao.beginTransaction();
+
+    const [doacao] = await conexao.query(
+      'INSERT INTO doacao (doador_id) VALUES (?)',
+      [doador_id]
+    );
+
+    for (const item of itens) {
+      if (!item.item_id || !Number.isInteger(item.quantidade) || item.quantidade <= 0) {
+        throw new Error('Item ou quantidade inválida');
+      }
+
+      await conexao.query(
+        'INSERT INTO doacao_item (doacao_id, item_id, quantidade) VALUES (?, ?, ?)',
+        [doacao.insertId, item.item_id, item.quantidade]
+      );
+    }
+
+    await conexao.commit();
+
+    res.status(201).json({
+      mensagem: 'Doação cadastrada com sucesso!',
+      id: doacao.insertId
+    });
+
+  } catch (error) {
+    await conexao.rollback();
+    res.status(500).json({ erro: error.message });
+
+  } finally {
+    conexao.release();
+  }
+});
+
+// Listar doações
+app.get('/api/doacoes', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        doacao.id,
+        doador.nome AS doador,
+        doacao.data_doacao,
+        doacao.status,
+        item.nome AS item,
+        doacao_item.quantidade
+      FROM doacao
+      INNER JOIN doador ON doacao.doador_id = doador.id
+      INNER JOIN doacao_item ON doacao.id = doacao_item.doacao_id
+      INNER JOIN item ON doacao_item.item_id = item.id
+      ORDER BY doacao.id DESC
+    `);
+
+    res.json(rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao consultar doações' });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
