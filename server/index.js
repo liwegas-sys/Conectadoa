@@ -21,7 +21,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Listar doadores
-app.get('/api/doadores', async (req, res) => {
+app.get('/api/doadores', autenticarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM doador ORDER BY id DESC'
@@ -34,7 +34,7 @@ app.get('/api/doadores', async (req, res) => {
 });
 
 // Listar categorias
-app.get('/api/categorias', async (req, res) => {
+app.get('/api/categorias', autenticarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM categoria ORDER BY id'
@@ -47,7 +47,7 @@ app.get('/api/categorias', async (req, res) => {
 });
 
 // Listar itens
-app.get('/api/itens', async (req, res) => {
+app.get('/api/itens', autenticarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT item.*, categoria.nome AS categoria
@@ -64,7 +64,7 @@ app.get('/api/itens', async (req, res) => {
 });
 
 // Cadastrar doador
-app.post('/api/doadores', async (req, res) => {
+app.post('/api/doadores', autenticarToken, async (req, res) => {
   try {
     const { nome, email, telefone } = req.body;
 
@@ -108,7 +108,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 // Cadastrar doação
-app.post('/api/doacoes', async (req, res) => {
+app.post('/api/doacoes', autenticarToken, async (req, res) => {
   const { doador_id, itens } = req.body;
 
   if (!doador_id || !Array.isArray(itens) || itens.length === 0) {
@@ -155,7 +155,7 @@ app.post('/api/doacoes', async (req, res) => {
 });
 
 // Listar doações
-app.get('/api/doacoes', async (req, res) => {
+app.get('/api/doacoes', autenticarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT
@@ -180,7 +180,7 @@ app.get('/api/doacoes', async (req, res) => {
   }
 });
 // Cadastrar usuário
-app.post('/api/usuarios', async (req, res) => {
+app.post('/api/usuarios', autenticarToken, async (req, res) => {
   try {
     const { nome, email, senha } = req.body;
 
@@ -279,6 +279,24 @@ app.post('/api/login', async (req, res) => {
     });
   }
 });
+
+// Proteção das rotas com JWT
+function autenticarToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ erro: "Acesso não autorizado" });
+  }
+
+  try {
+    req.usuario = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    return res.status(403).json({ erro: "Token inválido ou expirado" });
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });

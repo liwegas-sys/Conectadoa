@@ -1,0 +1,173 @@
+openapi: 3.0.3
+info:
+  title: API ConectaDoa
+  description: API para gerenciamento de doadores, itens e doações.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/health:
+    get:
+      summary: Verificar funcionamento da API
+      security: []
+      responses:
+        '200':
+          description: API funcionando
+
+  /api/login:
+    post:
+      summary: Realizar login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - senha
+              properties:
+                email:
+                  type: string
+                  example: usuario@email.com
+                senha:
+                  type: string
+                  example: Senha123
+      responses:
+        '200':
+          description: Login realizado com sucesso
+        '400':
+          description: Dados obrigatórios não informados
+        '401':
+          description: Credenciais inválidas
+
+  /api/doadores:
+    get:
+      summary: Listar doadores
+      responses:
+        '200':
+          description: Lista de doadores
+        '401':
+          description: Token não informado ou inválido
+    post:
+      summary: Cadastrar doador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nome
+                - email
+              properties:
+                nome:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                telefone:
+                  type: string
+      responses:
+        '201':
+          description: Doador cadastrado
+        '400':
+          description: Dados obrigatórios ausentes
+        '409':
+          description: E-mail já cadastrado
+
+  /api/categorias:
+    get:
+      summary: Listar categorias
+      responses:
+        '200':
+          description: Lista de categorias
+
+  /api/itens:
+    get:
+      summary: Listar itens
+      responses:
+        '200':
+          description: Lista de itens
+
+  /api/doacoes:
+    get:
+      summary: Consultar histórico de doações
+      responses:
+        '200':
+          description: Histórico de doações
+    post:
+      summary: Registrar doação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - doador_id
+                - itens
+              properties:
+                doador_id:
+                  type: integer
+                itens:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - item_id
+                      - quantidade
+                    properties:
+                      item_id:
+                        type: integer
+                      quantidade:
+                        type: integer
+                        minimum: 1
+      responses:
+        '201':
+          description: Doação cadastrada com sucesso
+        '400':
+          description: Dados inválidos
+
+  /api/usuarios:
+    post:
+      summary: Cadastrar usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nome
+                - email
+                - senha
+              properties:
+                nome:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                senha:
+                  type: string
+                  minLength: 6
+      responses:
+        '201':
+          description: Usuário cadastrado
+        '400':
+          description: Dados inválidos
+        '409':
+          description: E-mail já cadastrado

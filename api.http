@@ -1,0 +1,67 @@
+@baseUrl = http://localhost:3000
+@token = COLE_SEU_TOKEN_AQUI
+
+### Verificar API
+GET {{baseUrl}}/api/health
+
+### Fazer login
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+  "email": "admin@conectadoa.com",
+  "senha": "Conecta123"
+}
+
+### Listar doadores
+GET {{baseUrl}}/api/doadores
+Authorization: Bearer {{token}}
+
+### Listar categorias
+GET {{baseUrl}}/api/categorias
+Authorization: Bearer {{token}}
+
+### Listar itens
+GET {{baseUrl}}/api/itens
+Authorization: Bearer {{token}}
+
+### Cadastrar doador
+POST {{baseUrl}}/api/doadores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Doador de Teste",
+  "email": "teste.api@conectadoa.com",
+  "telefone": "15999999999"
+}
+
+### Registrar doação
+POST {{baseUrl}}/api/doacoes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "doador_id": 1,
+  "itens": [
+    {
+      "item_id": 1,
+      "quantidade": 1
+    }
+  ]
+}
+
+### Consultar histórico de doações
+GET {{baseUrl}}/api/doacoes
+Authorization: Bearer {{token}}
+
+### Cadastrar usuário
+POST {{baseUrl}}/api/usuarios
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Novo Usuário",
+  "email": "novo.usuario@conectadoa.com",
+  "senha": "Senha123"
+}

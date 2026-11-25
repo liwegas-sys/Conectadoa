@@ -3,8 +3,22 @@
 import "./style.css";
 
 document.querySelector("#app").innerHTML = `
-  <main>
+  <section id="tela-login">
+  <h1>ConectaDoa</h1>
+  <h2>Acesso do administrador</h2>
+
+  <form id="form-login">
+    <input name="email" type="email" placeholder="E-mail" required>
+    <input name="senha" type="password" placeholder="Senha" required>
+    <button type="submit">Entrar</button>
+  </form>
+
+  <p id="mensagem-login"></p>
+</section>
+
+<main id="area-sistema" hidden>
     <h1>ConectaDoa</h1>
+    <button id="btn-sair" type="button">Sair</button>
     <p>Projeto de apoio a organizações sociais.</p>
 
     <h2>Status da API: <strong id="api-status">Verificando...</strong></h2>
@@ -70,7 +84,74 @@ document.querySelector("#app").innerHTML = `
       <ul id="lista-doacoes"></ul>
   </main>
 `;
+document.querySelector("#btn-sair").addEventListener("click", () => {
+  sessionStorage.removeItem("token");
+  document.querySelector("#area-sistema").hidden = true;
+  document.querySelector("#tela-login").hidden = false;
+});
 
+document.querySelector("#form-login").addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const formulario = evento.target;
+  const dados = Object.fromEntries(new FormData(formulario));
+  const mensagem = document.querySelector("#mensagem-login");
+
+  try {
+    const resposta = await fetch("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(dados)
+    });
+
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(resultado.erro || "Falha ao realizar login");
+    }
+
+    sessionStorage.setItem("token", resultado.token);
+
+    document.querySelector("#tela-login").hidden = true;
+    document.querySelector("#area-sistema").hidden = false;
+
+    formulario.reset();
+    mensagem.textContent = "";
+
+    await carregarDados();
+    await carregarFormularioDoacao();
+    await carregarHistoricoDoacoes();
+
+  } catch (erro) {
+    mensagem.textContent = erro.message;
+  }
+});
+async function apiFetch(url, opcoes = {}) {
+  const token = sessionStorage.getItem("token");
+
+  const resposta = await fetch(url, {
+    ...opcoes,
+    headers: {
+      ...opcoes.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+
+  if (resposta.status === 401 || resposta.status === 403) {
+    sessionStorage.removeItem("token");
+    document.querySelector("#tela-login").hidden = false;
+    document.querySelector("#area-sistema").hidden = true;
+  }
+
+  if (!resposta.ok) {
+    const erro = await resposta.json().catch(() => ({}));
+    throw new Error(erro.erro || `Erro na requisição: ${resposta.status}`);
+  }
+
+  return resposta;
+}
 async function verificarAPI() {
   const status = document.querySelector("#api-status");
   const hora = document.querySelector("#api-hora");
@@ -91,19 +172,34 @@ async function verificarAPI() {
 async function carregarDados() {
   try {
     const [doadores, categorias, itens] = await Promise.all([
-      fetch("/api/doadores").then(r => r.json()),
-      fetch("/api/categorias").then(r => r.json()),
-      fetch("/api/itens").then(r => r.json())
+      apiFetch("/api/doadores").then(r => r.json()),
+      apiFetch("/api/categorias").then(r => r.json()),
+      apiFetch("/api/itens").then(r => r.json())
     ]);
 
-    document.querySelector("#lista-doadores").innerHTML =
-      doadores.map(d => `<li>${d.nome} - ${d.email}</li>`).join("");
+    const listaDoadores = document.querySelector("#lista-doadores");
+    listaDoadores.replaceChildren();
+    doadores.forEach(d => {
+      const li = document.createElement("li");
+      li.textContent = `${d.nome} - ${d.email}`;
+      listaDoadores.appendChild(li);
+    });
 
-    document.querySelector("#lista-categorias").innerHTML =
-      categorias.map(c => `<li>${c.nome}</li>`).join("");
+    const listaCategorias = document.querySelector("#lista-categorias");
+    listaCategorias.replaceChildren();
+    categorias.forEach(c => {
+      const li = document.createElement("li");
+      li.textContent = c.nome;
+      listaCategorias.appendChild(li);
+    });
 
-    document.querySelector("#lista-itens").innerHTML =
-      itens.map(i => `<li>${i.nome} - ${i.quantidade} unidades (${i.categoria})</li>`).join("");
+    const listaItens = document.querySelector("#lista-itens");
+    listaItens.replaceChildren();
+    itens.forEach(i => {
+      const li = document.createElement("li");
+      li.textContent = `${i.nome} - ${i.quantidade} unidades (${i.categoria})`;
+      listaItens.appendChild(li);
+    });
 
   } catch (erro) {
     console.error("Erro ao carregar dados:", erro);
@@ -118,7 +214,7 @@ document.querySelector("#form-doador").addEventListener("submit", async (evento)
   const mensagem = document.querySelector("#mensagem");
 
   try {
-    const resposta = await fetch("/api/doadores", {
+    const resposta = await apiFetch("/api/doadores", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -143,26 +239,33 @@ document.querySelector("#form-doador").addEventListener("submit", async (evento)
 });
 
 void verificarAPI();
-void carregarDados();
 
 // Carregar opções do formulário de doação
 async function carregarFormularioDoacao() {
   try {
     const [doadores, itens] = await Promise.all([
-      fetch("/api/doadores").then(r => r.json()),
-      fetch("/api/itens").then(r => r.json())
+      apiFetch("/api/doadores").then(r => r.json()),
+      apiFetch("/api/itens").then(r => r.json())
     ]);
 
     const seletorDoador = document.querySelector("#doacao-doador");
     const seletorItem = document.querySelector("#doacao-item");
 
-    seletorDoador.innerHTML += doadores
-      .map(d => `<option value="${d.id}">${d.nome}</option>`)
-      .join("");
+    seletorDoador.replaceChildren();
+    doadores.forEach(d => {
+      const opcao = document.createElement("option");
+      opcao.value = d.id;
+      opcao.textContent = d.nome;
+      seletorDoador.appendChild(opcao);
+    });
 
-    seletorItem.innerHTML += itens
-      .map(i => `<option value="${i.id}">${i.nome}</option>`)
-      .join("");
+    seletorItem.replaceChildren();
+    itens.forEach(i => {
+      const opcao = document.createElement("option");
+      opcao.value = i.id;
+      opcao.textContent = i.nome;
+      seletorItem.appendChild(opcao);
+    });
 
   } catch (erro) {
     console.error("Erro ao carregar formulário:", erro);
@@ -179,7 +282,7 @@ document.querySelector("#form-doacao").addEventListener("submit", async (evento)
   const mensagem = document.querySelector("#mensagem-doacao");
 
   try {
-    const resposta = await fetch("/api/doacoes", {
+    const resposta = await apiFetch("/api/doacoes", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -209,21 +312,19 @@ document.querySelector("#form-doacao").addEventListener("submit", async (evento)
 // Consultar histórico
 async function carregarHistoricoDoacoes() {
   try {
-    const resposta = await fetch("/api/doacoes");
+    const resposta = await apiFetch("/api/doacoes");
     const doacoes = await resposta.json();
 
-    document.querySelector("#lista-doacoes").innerHTML =
-      doacoes.map(d => `
-        <li>
-          ${d.doador} - ${d.item} - Quantidade: ${d.quantidade}
-          - Status: ${d.status}
-        </li>
-      `).join("");
+    const listaDoacoes = document.querySelector("#lista-doacoes");
+    listaDoacoes.replaceChildren();
+
+    doacoes.forEach(d => {
+      const li = document.createElement("li");
+      li.textContent = `${d.doador} - ${d.item} - Quantidade: ${d.quantidade} - Status: ${d.status}`;
+      listaDoacoes.appendChild(li);
+    });
 
   } catch (erro) {
     console.error("Erro ao carregar histórico:", erro);
   }
 }
-
-void carregarFormularioDoacao();
-void carregarHistoricoDoacoes();
